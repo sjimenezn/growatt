@@ -1,0 +1,11 @@
+
+    # Use known plant ID and get devices
+    plant_id = 2817170
+    device_list = api.device_list(plant_id)
+    print("\nDevice List:")
+    print(device_list)
+
+    # Since device_list is a list, we access index 0
+    if device_list:
+        inverter_sn = device_list[0]['deviceSn']
+        print(f"\nInverter Serial Number: {inverter_sn}")
