@@ -1,0 +1,75 @@
+import requests
+import json
+import time
+from flask import Flask, render_template
+from datetime import datetime
+
+app = Flask(__name__)
+
+# Growatt API base URL
+API_BASE_URL = "https://server.growatt.com/api"
+
+# Growatt login credentials
+username = "marceloperezrivero@gmail.com"
+password = "Mar181103"
+
+# Function to log in to Growatt and get user information
+def login():
+    login_url = f"{API_BASE_URL}/login"
+    login_payload = {
+        "username": username,
+        "password": password
+    }
+    login_response = requests.post(login_url, data=login_payload)
+    return login_response.json()
+
+# Function to get plant information
+def get_plant_info(user_id):
+    plant_list_url = f"{API_BASE_URL}/user/{user_id}/plantList"
+    response = requests.get(plant_list_url)
+    return response.json()
+
+# Function to get inverter information
+def get_inverter_info(plant_id):
+    inverter_list_url = f"{API_BASE_URL}/plant/{plant_id}/inverterList"
+    response = requests.get(inverter_list_url)
+    return response.json()
+
+# Function to get storage details
+def get_storage_details(inverter_sn):
+    storage_url = f"{API_BASE_URL}/inverter/{inverter_sn}/storageDetail"
+    response = requests.get(storage_url)
+    return response.json()
+
+# Endpoint to display all the retrieved data
+@app.route('/details')
+def details():
+    try:
+        # Login to Growatt
+        login_response = login()
+        user_id = login_response['user']['id']
+        plant_info = get_plant_info(user_id)
+        plant_id = plant_info['data'][0]['plantId']
+        inverter_info = get_inverter_info(plant_id)
+        inverter_sn = inverter_info['data'][0]['deviceSn']
+        
+        # Get storage details
+        storage_data = get_storage_details(inverter_sn)
+        
+        # Log the data retrieved
+        print("🌿 User ID:", user_id)
+        print("🌿 Plant ID:", plant_id)
+        print("🔌 Inverter SN:", inverter_sn)
+        print("📦 Storage Details:", storage_data)
+        
+        # Format data for HTML table
+        storage_data_formatted = json.dumps(storage_data, indent=4)
+        
+        return render_template("details.html", user_id=user_id, plant_id=plant_id, inverter_sn=inverter_sn, storage_data=storage_data_formatted, last_updated=datetime.now())
+
+    except Exception as e:
+        return f"Error: {e}"
+
+# Start the Flask app
+if __name__ == "__main__":
+    app.run(debug=True)
