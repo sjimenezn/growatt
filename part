@@ -9,6 +9,20 @@
         inverter_sn = device_list[0]['deviceSn']
         print(f"\nInverter Serial Number: {inverter_sn}")
 
+plant_id = 2817170
+    device_list = api.device_list(plant_id)
+    print("\nDevice List:")
+    print(device_list)
+
+response: Device List:
+[{'deviceType': 'storage', 'eChargeToday': '0', 'apparentPower': '3000', 'deviceSn': 'BNG7CH806N', 'deviceStatus': '2', 'capacity': '67 %', 'pCharge': '0', 'dtc': '20105', 'lost': False, 'datalogSn': 'DDD0DAX00E', 'storageType': '3', 'isOffGrid': 'true', 'location': '', 'deviceAilas': 'Inversor Ospina Leyton', 'activePower': '305.0', 'energy': '59.7'}]
+
+
+    # Since device_list is a list, we access index 0
+    if device_list:
+        inverter_sn = device_list[0]['deviceSn']
+        print(f"\nInverter Serial Number: {inverter_sn}")
+
 
 
 
