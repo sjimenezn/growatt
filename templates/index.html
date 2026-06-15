@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>YouTube Downloader</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 1rem;
+            background: #0f0f0f;
+            color: #f1f1f1;
+        }
+        .container {
+            background: #1f1f1f;
+            border-radius: 24px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin: 0 0 0.25rem 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sub {
+            color: #aaa;
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+        }
+        .search-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+        input {
+            flex: 1;
+            padding: 12px 16px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 40px;
+            background: #2a2a2a;
+            color: white;
+            outline: none;
+            min-width: 200px;
+        }
+        input:focus {
+            background: #333;
+            box-shadow: 0 0 0 2px #3ea6ff;
+        }
+        button {
+            background: #3ea6ff;
+            border: none;
+            padding: 0 20px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #0f0f0f;
+        }
+        button:hover {
+            background: #5cb3ff;
+            transform: scale(0.98);
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #aaa;
+        }
+        .results-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 1rem;
+        }
+        .video-card {
+            background: #2a2a2a;
+            border-radius: 16px;
+            padding: 1rem;
+            transition: 0.1s;
+        }
+        .video-card:hover {
+            background: #333;
+        }
+        .video-header {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .thumbnail {
+            width: 120px;
+            border-radius: 8px;
+            flex-shrink: 0;
+            object-fit: cover;
+        }
+        .video-info {
+            flex: 1;
+        }
+        .video-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 1rem;
+        }
+        .video-meta {
+            font-size: 0.8rem;
+            color: #aaa;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .quality-section {
+            margin-top: 1rem;
+            border-top: 1px solid #444;
+            padding-top: 1rem;
+        }
+        .quality-title {
+            font-size: 0.85rem;
+            margin-bottom: 0.75rem;
+            color: #ccc;
+        }
+        .quality-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .quality-btn {
+            background: #383838;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+        .quality-btn:hover {
+            background: #3ea6ff;
+            transform: scale(0.98);
+        }
+        .error {
+            background: #8b0000;
+            padding: 1rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+        }
+        hr {
+            border-color: #333;
+            margin: 1rem 0;
+        }
+        @media (max-width: 600px) {
+            .video-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            .thumbnail {
+                width: 160px;
+                margin: 0 auto;
+            }
+            .search-area {
+                flex-direction: column;
+            }
+            button {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>📥 YouTube Downloader</h1>
+    <div class="sub">Search or paste YouTube URL → Select Quality → Download</div>
+
+    <div class="search-area">
+        <input type="text" id="searchInput" placeholder="Paste YouTube URL or search term...">
+        <button id="searchBtn">🔍 Search</button>
+    </div>
+    <div id="resultsArea">
+        <div class="loading">💡 Paste a YouTube URL and click Search, or type keywords to search.</div>
+    </div>
+    <hr>
+    <div style="font-size: 0.7rem; text-align: center; color: #555;">
+        ⚡ Downloads MP4 file directly to your device
+    </div>
+</div>
+
+<script>
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resultsArea = document.getElementById('resultsArea');
+
+    function isYouTubeUrl(url) {
+        return url && (url.includes('youtube.com/watch') || url.includes('youtu.be/'));
+    }
+
+    searchBtn.addEventListener('click', () => {
+        const query = searchInput.value.trim();
+        if (!query) return;
+        
+        if (isYouTubeUrl(query)) {
+            fetchFormats(query);
+        } else {
+            searchYouTube(query);
+        }
+    });
+
+    async function searchYouTube(searchTerm) {
+        resultsArea.innerHTML = '<div class="loading">🔎 Searching...</div>';
+        try {
+            const response = await fetch(`/api/search?q=${encodeURIComponent(searchTerm)}`);
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+            renderVideoList(data.videos);
+        } catch (err) {
+            resultsArea.innerHTML = `<div class="error">❌ Search failed: ${err.message}</div>`;
+        }
+    }
+
+    async function fetchFormats(url) {
+        if (!url || url === 'undefined') {
+            resultsArea.innerHTML = '<div class="error">❌ Invalid URL.</div>';
+            return;
+        }
+        
+        resultsArea.innerHTML = '<div class="loading">📡 Fetching formats...</div>';
+        try {
+            const response = await fetch(`/api/formats?url=${encodeURIComponent(url)}`);
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+            renderVideoWithFormats(data);
+        } catch (err) {
+            resultsArea.innerHTML = `<div class="error">❌ Failed: ${err.message}</div>`;
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function downloadVideo(videoUrl, quality, formatId) {
+        if (!videoUrl || videoUrl === 'undefined') {
+            alert('Error: Invalid video URL');
+            return;
+        }
+        
+        let downloadUrl;
+        if (formatId) {
+            downloadUrl = `/api/download?url=${encodeURIComponent(videoUrl)}&format_id=${formatId}`;
+        } else {
+            downloadUrl = `/api/download?url=${encodeURIComponent(videoUrl)}&quality=${quality}`;
+        }
+        
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function renderVideoWithFormats(data) {
+        if (!data || !data.webpage_url) {
+            resultsArea.innerHTML = '<div class="error">❌ Invalid video data.</div>';
+            return;
+        }
+        
+        const videoUrl = data.webpage_url;
+        const formats = data.formats;
+        
+        if (!formats || formats.length === 0) {
+            resultsArea.innerHTML = '<div class="loading">😞 No formats available.</div>';
+            return;
+        }
+        
+        const html = `
+            <div class="results-grid">
+                <div class="video-card">
+                    <div class="video-header">
+                        <img class="thumbnail" src="${data.thumbnail || ''}" alt="thumbnail" onerror="this.src='https://placehold.co/120x68?text=No+Image'">
+                        <div class="video-info">
+                            <div class="video-title">${escapeHtml(data.title || 'Unknown Title')}</div>
+                        </div>
+                    </div>
+                    <div class="quality-section">
+                        <div class="quality-title">📋 Select Quality:</div>
+                        <div class="quality-buttons">
+                            ${formats.map(format => {
+                                const escapedUrl = videoUrl.replace(/'/g, "\\'");
+                                return `
+                                    <button class="quality-btn" onclick="downloadVideo('${escapedUrl}', '${format.quality}', '${format.format_id}')">
+                                        ${format.quality} 🔊
+                                    </button>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        resultsArea.innerHTML = html;
+    }
+
+    function renderVideoList(videos) {
+        if (!videos || videos.length === 0) {
+            resultsArea.innerHTML = '<div class="loading">😞 No videos found.</div>';
+            return;
+        }
+        
+        const html = `
+            <div class="results-grid">
+                ${videos.map(video => {
+                    const escapedUrl = video.webpage_url.replace(/'/g, "\\'");
+                    return `
+                        <div class="video-card">
+                            <div class="video-header">
+                                <img class="thumbnail" src="${video.thumbnail || ''}" alt="thumbnail" onerror="this.src='https://placehold.co/120x68?text=No+Image'">
+                                <div class="video-info">
+                                    <div class="video-title">${escapeHtml(video.title)}</div>
+                                    <div class="video-meta">
+                                        <span>⏱️ ${video.duration || '?'}</span>
+                                        <span>📺 ${escapeHtml(video.author)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="quality-section">
+                                <div class="quality-buttons">
+                                    <button class="quality-btn" onclick="fetchFormats('${escapedUrl}')">
+                                        Select Quality ▼
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+        resultsArea.innerHTML = html;
+    }
+
+    searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') searchBtn.click();
+    });
+</script>
+</body>
+</html>
